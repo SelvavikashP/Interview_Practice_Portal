@@ -1,35 +1,50 @@
+import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Download, AlertTriangle, ArrowUpRight } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, ArrowUpRight } from 'lucide-react'
 import { ScoreChart } from '@/components/dashboard/score-chart'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
-// Mock Detailed Report Data
-const REPORT = {
-  id: '1',
-  role: 'Full Stack Developer',
-  date: '2023-10-24T10:00:00Z',
-  type: 'Full Mock Interview',
-  overallScore: 85,
-  readiness: 'Interview Ready',
-  roundScores: [
-    { name: 'Aptitude', score: 90 },
-    { name: 'Tech MCQ', score: 85 },
-    { name: 'Coding', score: 95 },
-    { name: 'Communication', score: 75 },
-    { name: 'HR/AI', score: 80 },
-  ],
-  strengths: ['Data Structures & Algorithms', 'System Architecture knowledge', 'Problem-solving speed'],
-  weaknesses: ['Verbal communication clarity', 'Behavioral STAR method answers'],
-  feedback: "You demonstrated an excellent grasp of technical concepts and coding ability. Your logic is sound and you solve problems efficiently. However, during the HR and Communication rounds, your answers were sometimes unstructured. Try to use the STAR (Situation, Task, Action, Result) method to organize your thoughts better.",
-  proctoring: {
-    violations: 0,
-    status: 'Clean'
+export default async function ReportPage({ params }: { params: { id: string } }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) redirect('/login')
+
+  // Fetch this specific submission, scoped to the logged-in user
+  const { data: submission } = await supabase
+    .from('submissions')
+    .select('*')
+    .eq('id', params.id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!submission) {
+    return (
+      <div className="p-8 max-w-4xl mx-auto text-center space-y-4">
+        <h1 className="text-2xl font-bold">Report Not Found</h1>
+        <p className="text-zinc-500">This report does not exist or you do not have access to it.</p>
+        <Link href="/dashboard/history">
+          <Button>Back to History</Button>
+        </Link>
+      </div>
+    )
   }
-}
 
-export default function ReportPage({ params }: { params: { id: string } }) {
+  const report = submission.report || {}
+  const overallScore = submission.score ?? 0
+  const readiness = overallScore >= 80 ? 'Interview Ready' : overallScore >= 50 ? 'Needs Practice' : 'Not Ready'
+
+  const roundScores = report.roundScores || [
+    { name: submission.assessment_type?.replace('-', ' ') || 'Assessment', score: overallScore },
+  ]
+
+  const strengths = report.strengths || ['Complete more assessments to see detailed strengths']
+  const weaknesses = report.weaknesses || ['Complete more assessments to see areas for improvement']
+  const feedback = report.feedback || `You scored ${overallScore}% on this ${submission.assessment_type?.replace('-', ' ')} assessment at ${submission.difficulty} difficulty. Keep practicing to improve your scores!`
+
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       {/* Header */}
@@ -37,17 +52,18 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         <div>
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-3xl font-bold tracking-tight">Assessment Report</h1>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800">
-              {REPORT.type}
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 capitalize">
+              {submission.assessment_type?.replace('-', ' ')}
             </Badge>
+            <Badge variant="outline" className="capitalize text-xs">{submission.difficulty}</Badge>
           </div>
           <p className="text-zinc-500">
-            For {REPORT.role} • Completed on {new Date(REPORT.date).toLocaleDateString()}
+            Completed on {new Date(submission.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="h-4 w-4" /> Download PDF
-        </Button>
+        <Badge className={submission.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}>
+          {submission.status}
+        </Badge>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -57,9 +73,9 @@ export default function ReportPage({ params }: { params: { id: string } }) {
             <CardTitle className="text-blue-100">Overall Score</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center py-6">
-            <div className="text-6xl font-extrabold mb-2">{REPORT.overallScore}%</div>
+            <div className="text-6xl font-extrabold mb-2">{overallScore}%</div>
             <div className="text-lg font-medium bg-white/20 px-4 py-1 rounded-full backdrop-blur-sm">
-              {REPORT.readiness}
+              {readiness}
             </div>
           </CardContent>
         </Card>
@@ -70,7 +86,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
             <CardTitle>Round-wise Performance</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScoreChart data={REPORT.roundScores} />
+            <ScoreChart data={roundScores} />
           </CardContent>
         </Card>
       </div>
@@ -85,7 +101,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {REPORT.strengths.map((item, i) => (
+              {strengths.map((item: string, i: number) => (
                 <li key={i} className="flex items-start gap-2 text-zinc-700 dark:text-zinc-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-2 shrink-0" />
                   {item}
@@ -104,7 +120,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {REPORT.weaknesses.map((item, i) => (
+              {weaknesses.map((item: string, i: number) => (
                 <li key={i} className="flex items-start gap-2 text-zinc-700 dark:text-zinc-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500 mt-2 shrink-0" />
                   {item}
@@ -117,12 +133,10 @@ export default function ReportPage({ params }: { params: { id: string } }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Detailed AI Feedback</CardTitle>
+          <CardTitle>AI Feedback</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="leading-relaxed text-zinc-700 dark:text-zinc-300">
-            {REPORT.feedback}
-          </p>
+          <p className="leading-relaxed text-zinc-700 dark:text-zinc-300">{feedback}</p>
         </CardContent>
       </Card>
       

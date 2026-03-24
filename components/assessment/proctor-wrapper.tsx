@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, ReactNode } from 'react'
+import { useEffect, useState, useRef, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -14,21 +14,40 @@ export function ProctorWrapper({ children }: { children: ReactNode }) {
 
   const MAX_WARNINGS = 3
 
+  // Camera stream — started when assessment starts, stopped on unmount
+  const streamRef = useRef<MediaStream | null>(null)
+
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        triggerWarning('Tab switching or minimizing window is not allowed.')
+    // Start camera + mic recording when the assessment page mounts
+    async function startProctoring() {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        streamRef.current = s
+      } catch (err) {
+        console.warn('Proctoring camera/mic unavailable:', err)
       }
     }
+    startProctoring()
 
+    // Cleanup — stop ALL tracks when assessment page is left
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+      }
+    }
+  }, [])
+
+  // Violation detection
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) triggerWarning('Tab switching or minimizing window is not allowed.')
+    }
     const handleBlur = () => {
       triggerWarning('Moving focus away from the assessment window is not allowed.')
     }
-
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
-        triggerWarning('Exiting fullscreen is not allowed.')
-      }
+      if (!document.fullscreenElement) triggerWarning('Exiting fullscreen is not allowed.')
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -44,17 +63,20 @@ export function ProctorWrapper({ children }: { children: ReactNode }) {
 
   const triggerWarning = (msg: string) => {
     const newWarnings = warnings + 1
-    
+
     if (newWarnings >= MAX_WARNINGS) {
-      // Auto terminate
-      alert('Maximum violations reached. The assessment has been terminated.')
+      // Stop camera + mic immediately on termination
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+      }
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {})
       }
-      router.push('/dashboard')
+      router.replace('/dashboard?error=violation_terminated')
       return
     }
-    
+
     setWarnings(newWarnings)
     setViolationMsg(msg)
     setShowWarningModal(true)
@@ -70,7 +92,7 @@ export function ProctorWrapper({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      
+
       <Dialog open={showWarningModal}>
         <DialogContent className="sm:max-w-md [&>button]:hidden">
           <DialogHeader>
@@ -80,11 +102,11 @@ export function ProctorWrapper({ children }: { children: ReactNode }) {
             <DialogTitle className="text-center text-xl">Proctoring Warning</DialogTitle>
             <DialogDescription className="text-center text-base pt-2">
               {violationMsg}
-              <br/><br/>
+              <br /><br />
               <span className="font-semibold text-rose-600 dark:text-rose-400">
                 Warning {warnings} of {MAX_WARNINGS - 1}.
               </span>
-              <br/>
+              <br />
               Further violations may result in automatic termination of the test.
             </DialogDescription>
           </DialogHeader>

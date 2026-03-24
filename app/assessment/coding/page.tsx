@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ProctorWrapper } from '@/components/assessment/proctor-wrapper'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -20,6 +20,8 @@ const LANGUAGES = {
 
 export default function CodingRoundPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const difficulty = searchParams.get('difficulty') || 'medium'
   const monaco = useMonaco()
   
   const [language, setLanguage] = useState<keyof typeof LANGUAGES>('python')
@@ -95,9 +97,9 @@ export default function CodingRoundPage() {
   }
 
   const handleSubmit = async () => {
-    // Determine score or status roughly for mock purposes
     await new Promise(r => setTimeout(r, 1000))
-    router.push('/dashboard/history?type=coding')
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    router.push('/dashboard/history?type=coding&complete=1')
   }
 
   return (
@@ -122,9 +124,13 @@ export default function CodingRoundPage() {
           {/* Left Panel - Problem Description */}
           <div className="w-2/5 h-full bg-white dark:bg-zinc-900 border-r overflow-y-auto p-6 space-y-6 flex flex-col">
             <div>
-                  <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-4">
                     <h2 className="text-2xl font-bold">1. Two Sum</h2>
-                    <span className="px-2 py-1 text-xs font-semibold rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">Easy</span>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded capitalize ${
+                      difficulty === 'easy' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' :
+                      difficulty === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' :
+                      'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
+                    }`}>{difficulty}</span>
                   </div>
                   <div className="prose dark:prose-invert max-w-none text-zinc-700 dark:text-zinc-300">
                     <p>Given an array of integers <code>nums</code> and an integer <code>target</code>, return <em>indices of the two numbers such that they add up to <code>target</code></em>.</p>

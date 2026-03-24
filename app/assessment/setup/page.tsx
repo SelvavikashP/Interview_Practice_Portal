@@ -1,139 +1,174 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, Camera, CheckCircle2, Mic, MonitorPlay } from 'lucide-react'
+import { AlertCircle, Camera, CheckCircle2, Mic, XCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
-import { Suspense } from 'react'
+type PermStatus = 'idle' | 'checking' | 'success' | 'error'
 
 function AssessmentSetupContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const type = searchParams.get('type') || 'aptitude'
 
-  const [camStatus, setCamStatus] = useState<'pending' | 'success' | 'error'>('pending')
-  const [micStatus, setMicStatus] = useState<'pending' | 'success' | 'error'>('pending')
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [stream, setStream] = useState<MediaStream | null>(null)
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
+  const [camStatus, setCamStatus] = useState<PermStatus>('idle')
+  const [micStatus, setMicStatus] = useState<PermStatus>('idle')
 
-  useEffect(() => {
-    async function requestPermissions() {
-      try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        setCamStatus('success')
-        setMicStatus('success')
-        setStream(mediaStream)
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream
-        }
-      } catch (err) {
-        setCamStatus('error')
-        setMicStatus('error')
+  // Test camera + mic permissions without keeping stream open
+  const handleTestPermissions = async () => {
+    setCamStatus('checking')
+    setMicStatus('checking')
+    let mediaStream: MediaStream | null = null
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      setCamStatus('success')
+      setMicStatus('success')
+    } catch (err) {
+      setCamStatus('error')
+      setMicStatus('error')
+    } finally {
+      // Immediately release the stream — we only needed permission confirmation
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop())
       }
     }
-    requestPermissions()
-
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop())
-      }
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const allClear = camStatus === 'success' && micStatus === 'success'
 
   const handleStart = async () => {
     if (!allClear) return
-    
-    // Stop local stream before navigating
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop())
-    }
 
-    // Attempt to go fullscreen
     try {
       if (document.documentElement.requestFullscreen) {
         await document.documentElement.requestFullscreen()
       }
     } catch (e) {
-      console.warn("Fullscreen request failed", e)
+      console.warn('Fullscreen request failed', e)
     }
 
-    router.push(`/assessment/${type}`)
+    router.push(`/assessment/${type}?difficulty=${difficulty}`)
+  }
+
+  const statusIcon = (status: PermStatus, Icon: React.ElementType, ReadyIcon: React.ElementType) => {
+    if (status === 'success') return <ReadyIcon className="h-5 w-5" />
+    if (status === 'error') return <XCircle className="h-5 w-5 text-red-500" />
+    if (status === 'checking') return <Loader2 className="h-5 w-5 animate-spin" />
+    return <Icon className="h-5 w-5" />
+  }
+
+  const statusText = (status: PermStatus) => {
+    if (status === 'success') return 'Verified ✓'
+    if (status === 'error') return 'Access Denied'
+    if (status === 'checking') return 'Checking...'
+    return 'Not tested yet'
   }
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-8 flex items-center justify-center">
-      <Card className="max-w-2xl w-full">
+      <Card className="max-w-3xl w-full border-zinc-200 dark:border-zinc-800">
         <CardHeader>
-          <CardTitle className="text-2xl">System Check & Instructions</CardTitle>
+          <CardTitle className="text-2xl">Assessment Setup</CardTitle>
           <CardDescription>
-            Please ensure your hardware is working before starting the proctored assessment.
+            Choose your difficulty and verify device permissions before starting.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Alert variant="destructive" className="bg-red-50 text-red-900 border-red-200 dark:bg-red-950 dark:text-red-200 dark:border-red-900">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Proctoring Enabled</AlertTitle>
-            <AlertDescription>
-              This assessment is proctored. Navigating away, switching tabs, or exiting full screen will result in a warning. Multiple warnings will auto-terminate your test.
-            </AlertDescription>
-          </Alert>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-full ${camStatus === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-zinc-100 text-zinc-500'}`}>
-                  {camStatus === 'success' ? <CheckCircle2 className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
-                </div>
-                <div>
-                  <h4 className="font-medium">Camera Access</h4>
-                  <p className="text-sm text-zinc-500">{camStatus === 'success' ? 'Ready' : camStatus === 'error' ? 'Denied' : 'Checking...'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-full ${micStatus === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-zinc-100 text-zinc-500'}`}>
-                  {micStatus === 'success' ? <CheckCircle2 className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                </div>
-                <div>
-                  <h4 className="font-medium">Microphone Access</h4>
-                  <p className="text-sm text-zinc-500">{micStatus === 'success' ? 'Ready' : micStatus === 'error' ? 'Denied' : 'Checking...'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
-                  <MonitorPlay className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="font-medium">Fullscreen Requirement</h4>
-                  <p className="text-sm text-zinc-500">Will be enabled upon starting</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-center items-center bg-zinc-100 dark:bg-zinc-900 rounded-lg aspect-video overflow-hidden border">
-              {camStatus === 'success' ? (
-                <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex flex-col items-center text-zinc-400">
-                  <Camera className="h-8 w-8 mb-2" />
-                  <span className="text-sm">Camera preview</span>
-                </div>
-              )}
+          {/* Difficulty Selector */}
+          <div className="p-4 bg-zinc-100 dark:bg-zinc-900 rounded-lg space-y-3">
+            <h4 className="font-semibold text-sm uppercase tracking-wider text-zinc-500">Select Difficulty</h4>
+            <div className="grid grid-cols-3 gap-2">
+              {(['easy', 'medium', 'hard'] as const).map((lvl) => (
+                <Button
+                  key={lvl}
+                  variant={difficulty === lvl ? 'default' : 'outline'}
+                  size="sm"
+                  className="capitalize"
+                  onClick={() => setDifficulty(lvl)}
+                >
+                  {lvl === 'easy' && '🟢 '}
+                  {lvl === 'medium' && '🟡 '}
+                  {lvl === 'hard' && '🔴 '}
+                  {lvl}
+                </Button>
+              ))}
             </div>
           </div>
+
+          {/* Permission Check */}
+          <div className="border rounded-lg divide-y dark:border-zinc-800 dark:divide-zinc-800">
+            <div className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-full ${camStatus === 'success' ? 'bg-emerald-100 text-emerald-600' : camStatus === 'error' ? 'bg-red-100 text-red-500' : 'bg-zinc-100 text-zinc-500'}`}>
+                  {statusIcon(camStatus, Camera, CheckCircle2)}
+                </div>
+                <div>
+                  <h4 className="font-medium">Camera</h4>
+                  <p className={`text-sm ${camStatus === 'error' ? 'text-red-500' : camStatus === 'success' ? 'text-emerald-600' : 'text-zinc-500'}`}>
+                    {statusText(camStatus)}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-zinc-400 max-w-[180px] text-right">
+                Camera will only turn on during the assessment, not on this page.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-full ${micStatus === 'success' ? 'bg-emerald-100 text-emerald-600' : micStatus === 'error' ? 'bg-red-100 text-red-500' : 'bg-zinc-100 text-zinc-500'}`}>
+                  {statusIcon(micStatus, Mic, CheckCircle2)}
+                </div>
+                <div>
+                  <h4 className="font-medium">Microphone</h4>
+                  <p className={`text-sm ${micStatus === 'error' ? 'text-red-500' : micStatus === 'success' ? 'text-emerald-600' : 'text-zinc-500'}`}>
+                    {statusText(micStatus)}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-zinc-400 max-w-[180px] text-right">
+                Used for speech detection during the assessment.
+              </p>
+            </div>
+          </div>
+
+          {camStatus === 'idle' || camStatus === 'error' ? (
+            <Button
+              variant="outline"
+              className="w-full border-dashed"
+              onClick={handleTestPermissions}
+              disabled={camStatus === 'checking'}
+            >
+              {camStatus === 'checking' ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking permissions...</>
+              ) : camStatus === 'error' ? (
+                <><XCircle className="mr-2 h-4 w-4 text-red-500" /> Retry Permission Check</>
+              ) : (
+                <><Camera className="mr-2 h-4 w-4" /> Verify Camera & Mic Access</>
+              )}
+            </Button>
+          ) : null}
+
+          <Alert variant="destructive" className="bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-900">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Proctoring Notice</AlertTitle>
+            <AlertDescription className="text-xs">
+              Camera & microphone will be accessed only during the assessment. Tab switching or exiting fullscreen will result in termination.
+            </AlertDescription>
+          </Alert>
         </CardContent>
         <CardFooter>
-          <Button 
-            className="w-full text-lg h-12" 
-            size="lg" 
-            disabled={!allClear} 
+          <Button
+            className="w-full text-lg h-12"
+            size="lg"
+            disabled={!allClear}
             onClick={handleStart}
           >
-            Enter Fullscreen & Start
+            Enter Fullscreen & Start Assessment
           </Button>
         </CardFooter>
       </Card>

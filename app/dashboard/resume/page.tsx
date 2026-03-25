@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Upload, FileText, CheckCircle2, Loader2 } from 'lucide-react'
+import { Upload, FileText, CheckCircle2, Loader2, AlertCircle } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 
@@ -23,6 +23,7 @@ export default function ResumeSetupPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [extractedData, setExtractedData] = useState<{ skills?: string[], suggestedRole?: string } | null>(null)
   const [selectedRole, setSelectedRole] = useState<string>('')
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files && e.target.files[0]) {
@@ -33,9 +34,18 @@ export default function ResumeSetupPage() {
   async function handleUpload() {
     if (!file) return
     setIsUploading(true)
+    setUploadError(null)
     
     // Simulate parsing the resume for 2 seconds
     await new Promise(r => setTimeout(r, 2000))
+
+    if (file.name.toLowerCase().includes('certificate')) {
+      setUploadError('Invalid document uploaded. Please upload a valid resume instead of a certificate.')
+      setExtractedData(null)
+      setSelectedRole('')
+      setIsUploading(false)
+      return
+    }
     
     // Mock extracted data
     setExtractedData({
@@ -100,7 +110,7 @@ export default function ResumeSetupPage() {
         </Card>
 
         {/* Role Selection Section */}
-        <Card className={!extractedData ? 'opacity-50 pointer-events-none' : ''}>
+        <Card className={!extractedData && !uploadError ? 'opacity-50 pointer-events-none' : ''}>
           <CardHeader>
             <CardTitle>2. Confirm Target Role</CardTitle>
             <CardDescription>Based on your resume, or choose manually.</CardDescription>
@@ -115,6 +125,20 @@ export default function ResumeSetupPage() {
                     <p className="text-sm text-emerald-700 dark:text-emerald-400 mt-1 leading-relaxed">
                       We detected top skills: <span className="font-semibold">{extractedData.skills?.join(', ')}</span>.
                       <br/> We suggest preparing for the <span className="font-semibold">{extractedData.suggestedRole}</span> role.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {uploadError && (
+              <div className="bg-rose-50 dark:bg-rose-950/30 p-4 rounded-lg border border-rose-200 dark:border-rose-900">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-rose-600 dark:text-rose-400 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-rose-900 dark:text-rose-300">Analysis Failed</h4>
+                    <p className="text-sm text-rose-700 dark:text-rose-400 mt-1 leading-relaxed">
+                      {uploadError}
                     </p>
                   </div>
                 </div>

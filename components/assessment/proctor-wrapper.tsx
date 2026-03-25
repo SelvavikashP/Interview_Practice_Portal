@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
 
-export function ProctorWrapper({ children }: { children: ReactNode }) {
+export function ProctorWrapper({ children, isFinished }: { children: ReactNode, isFinished?: boolean }) {
   const [warnings, setWarnings] = useState(0)
   const [showWarningModal, setShowWarningModal] = useState(false)
   const [violationMsg, setViolationMsg] = useState('')
@@ -40,6 +40,8 @@ export function ProctorWrapper({ children }: { children: ReactNode }) {
 
   // Violation detection
   useEffect(() => {
+    if (isFinished) return;
+
     const handleVisibilityChange = () => {
       if (document.hidden) triggerWarning('Tab switching or minimizing window is not allowed.')
     }
@@ -59,7 +61,7 @@ export function ProctorWrapper({ children }: { children: ReactNode }) {
       window.removeEventListener('blur', handleBlur)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
     }
-  }, [warnings])
+  }, [warnings, isFinished])
 
   const triggerWarning = (msg: string) => {
     const newWarnings = warnings + 1

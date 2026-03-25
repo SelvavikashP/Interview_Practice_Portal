@@ -139,7 +139,7 @@ function AptitudeContent() {
   }
 
   return (
-    <ProctorWrapper>
+    <ProctorWrapper isFinished={isSubmitting}>
       <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex flex-col">
         <header className="bg-white dark:bg-zinc-900 border-b flex items-center justify-between px-6 py-4 sticky top-0 z-10">
           <div className="flex items-center gap-4">

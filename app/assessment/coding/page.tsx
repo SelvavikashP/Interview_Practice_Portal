@@ -29,6 +29,7 @@ function CodingRoundContent() {
   const [output, setOutput] = useState('')
   const [isRunning, setIsRunning] = useState(false)
   const [timeLeft, setTimeLeft] = useState(45 * 60) // 45 minutes
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     if (monaco) {
@@ -97,13 +98,14 @@ function CodingRoundContent() {
   }
 
   const handleSubmit = async () => {
+    setIsSubmitting(true)
     await new Promise(r => setTimeout(r, 1000))
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
     router.push('/dashboard/history?type=coding&complete=1')
   }
 
   return (
-    <ProctorWrapper>
+    <ProctorWrapper isFinished={isSubmitting}>
       <div className="h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col font-sans overflow-hidden">
         {/* Header */}
         <header className="bg-white dark:bg-zinc-900 border-b h-14 flex items-center justify-between px-6 shrink-0">
@@ -181,7 +183,7 @@ function CodingRoundContent() {
                     {isRunning ? <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1.5" />}
                     Run Code
                   </Button>
-                  <Button size="sm" className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleSubmit}>
+                  <Button size="sm" className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleSubmit} disabled={isSubmitting}>
                     <Check className="h-3.5 w-3.5 mr-1.5" />
                     Submit
                   </Button>

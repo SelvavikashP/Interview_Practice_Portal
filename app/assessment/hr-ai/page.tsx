@@ -151,7 +151,7 @@ function AIInterviewContent() {
   const isFinished = interviewStep >= questions.length && !isTyping && messages[messages.length - 1]?.content === questions[questions.length - 1]
 
   return (
-    <ProctorWrapper>
+    <ProctorWrapper isFinished={isFinished}>
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center p-4 py-8 md:p-8">
         <div className="w-full max-w-4xl flex-1 flex flex-col bg-white dark:bg-zinc-900 rounded-xl shadow-sm border overflow-hidden">
           

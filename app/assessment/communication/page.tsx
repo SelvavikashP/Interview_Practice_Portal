@@ -80,11 +80,12 @@ export default function CommunicationRoundPage() {
     setIsSubmitting(true)
     if (isRecording) recognitionRef.current?.stop()
     await new Promise(r => setTimeout(r, 1500))
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
     router.push('/dashboard/history?type=communication')
   }
 
   return (
-    <ProctorWrapper>
+    <ProctorWrapper isFinished={isSubmitting}>
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center p-8">
         <div className="max-w-3xl w-full mt-12 space-y-8">
           

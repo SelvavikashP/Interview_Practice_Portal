@@ -18,7 +18,7 @@ const LANGUAGES = {
   cpp: { version: '10.2.0', defaultCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your code here\n    cout << "Hello" << endl;\n    return 0;\n}' }
 }
 
-export default function CodingRoundPage() {
+function CodingRoundContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const difficulty = searchParams.get('difficulty') || 'medium'
@@ -244,5 +244,13 @@ export default function CodingRoundPage() {
         </div>
       </div>
     </ProctorWrapper>
+  )
+}
+
+export default function CodingRoundPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading coding round...</div>}>
+      <CodingRoundContent />
+    </Suspense>
   )
 }

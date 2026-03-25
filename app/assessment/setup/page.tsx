@@ -136,16 +136,21 @@ function AssessmentSetupContent() {
             </div>
           </div>
 
-          {camStatus === 'idle' || camStatus === 'error' ? (
+          {camStatus === 'checking' ? (
+            <Button
+              variant="outline"
+              className="w-full border-dashed"
+              disabled
+            >
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking permissions...
+            </Button>
+          ) : camStatus === 'idle' || camStatus === 'error' ? (
             <Button
               variant="outline"
               className="w-full border-dashed"
               onClick={handleTestPermissions}
-              disabled={camStatus === 'checking'}
             >
-              {camStatus === 'checking' ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking permissions...</>
-              ) : camStatus === 'error' ? (
+              {camStatus === 'error' ? (
                 <><XCircle className="mr-2 h-4 w-4 text-red-500" /> Retry Permission Check</>
               ) : (
                 <><Camera className="mr-2 h-4 w-4" /> Verify Camera & Mic Access</>
